@@ -1,0 +1,200 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap");
+
+@font-face {
+  font-family: "font-header";
+  src: url("../src/assets/fonts/Montserrat-ExtraBold.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Montserrat-Regular";
+  src: url("../src/assets/fonts/Montserrat-Regular.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "OpenSans-Regular";
+  src: url("../src/assets/fonts/OpenSans-Regular.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "OpenSans-Medium";
+  src: url("../src/assets/fonts/OpenSans-Medium.ttf") format("truetype");
+}
+
+/*
+  Default Font Size = 1 rem = 16px  
+  Search Font Size = 0.9 rem
+  Search Padding = 0.2 rem 1 rem
+*/
+
+html,
+body,
+#root,
+.app {
+  width: "100%";
+  height: 100%;
+  line-height: 1.43;
+  color: #222;
+  background-color: #fff;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.main-header {
+  position: "fixed";
+  justify-content: space-between;
+  display: flex;
+  font-family: "Montserrat-Regular";
+  background-color: #f9f9f9 !important;
+  border: none;
+  box-shadow: none !important;
+  height: 6rem;
+  width: 100%;
+}
+.main-header-scroll {
+  position: "fixed";
+  justify-content: space-between;
+  display: flex;
+  font-family: "Montserrat-Regular";
+  background-color: #f9f9f9 !important;
+  box-shadow: 0px 2px 4px -1px rgba(0, 0, 0, 0.2),
+    0px 4px 5px 0px rgba(0, 0, 0, 0.14), 0px 1px 10px 0px rgba(0, 0, 0, 0.12) !important;
+  height: 6rem;
+  width: 100%;
+}
+
+.header {
+  position: "fixed";
+  justify-content: space-between;
+  font-family: "font-tab";
+  display: flex;
+  position: relative;
+  background-color: #fff !important;
+  height: 4.7rem;
+  width: 100%;
+  z-index: 1;
+  --view-transition-name: search-input-header;
+}
+
+.navbar {
+  position: "fixed";
+  margin-top: 4.7rem;
+  justify-content: space-between;
+  align-items: center;
+  display: flex;
+  color: #222 !important;
+  background-color: #fff !important;
+  width: 100%;
+  z-index: 1;
+  --view-transition-name: search-input-header;
+  border-bottom: none !important;
+}
+.Mui-selected {
+  color: #222 !important; /* Customize the label color here */
+}
+.Mui-selected {
+  border-bottom: 3px solid #ed1c24 !important; /* Customize the underline color and style here */
+}
+
+.MuiPaper-root-MuiCard-root {
+  background-color: #fff !important;
+  color: #222 !important;
+}
+
+.MuiCardHeader-title {
+  font-size: 1.2rem !important;
+  font-weight: bold;
+}
+
+.css-8er80j-MuiPaper-root-MuiTableContainer-root {
+  background-color: #fff !important;
+  color: #222 !important;
+}
+
+.MuiTableCell-root {
+  color: #222 !important;
+}
+
+.MuiSvgIcon-root {
+  color: #808080 !important;
+}
+.MuiCardHeader-root {
+  background-color: #e7e7e7 !important;
+  height: 5rem !important;
+}
+
+.card {
+  text-align: left !important;
+  border-radius: 10px !important;
+  background-color: rgb(255, 255, 255) !important;
+  transition: max-height 500ms ease-out 0s !important;
+  overflow: hidden !important;
+  -webkit-tap-highlight-color: transparent !important;
+  outline: none;
+  color: #222 !important;
+}
+
+.card:hover {
+  transition: all 250ms ease-out 0s !important;
+  box-shadow: rgba(0, 0, 0, 0) 0px 13px 80px 0px !important;
+  transform: scale(1.05) !important;
+  background-color: #f7f7f7 !important;
+  color: #222 !important;
+}
+
+.css-kc02vp-MuiPaper-root-MuiPopover-paper-MuiMenu-paper {
+  background-color: #fff !important;
+}
+
+.css-40hvnn-MuiButtonBase-root-MuiTab-root {
+  font-weight: 600 !important;
+}
+
+.MuiTabs-indicator {
+  display: none;
+}
+
+.css-1ls8w1n-MuiPaper-root {
+  background-color: inherit !important;
+  color: #666666 !important;
+  border: none !important;
+  box-shadow: none !important;
+  font-weight: 400;
+  font-size: 1.2rem !important;
+  height: 60px;
+}
+
+.css-1qo7puv-MuiToolbar-root {
+  min-height: 2.7rem !important;
+}
+
+.MuiButton-root:hover {
+  background-color: #431ced  !important;
+}
+
+.MuiDataGrid-root {
+  color: inherit !important;
+  border: none !important;
+  box-shadow: #222 0px 0px 8px 0px;
+}
+
+.MuiTablePagination-root {
+  color: inherit !important;
+}
+
+.css-2d9bzy-MuiButtonBase-root-MuiMenuItem-root-MuiTablePagination-menuItem {
+  color: #222222 !important;
+}
+
+.css-vz3odf {
+  color: #888888 !important;
+}
+
+
+.css-1fonj0q {
+  background-color: #fff !important;
+  color: #222 !important;
+}
+
+/* .css-wwjia3-MuiButtonBase-root-MuiMenuItem-root {
+  color: #222 !important;
+} */
