@@ -46,7 +46,6 @@ function App() {
   };
 
   const selectComponent = (value) => {
-    console.log(value);
     if (value === "dashboard") {
       setRenderComponent(<Dashboard />);
     } else if (value === "placeId") {

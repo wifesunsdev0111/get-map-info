@@ -47,8 +47,6 @@ const Dashboard = () => {
   const [threadCount, setThreadCount] = useState("");
   const [warningMessage, setWarningMessage] = useState("");
   const [open, setOpen] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [progressOpen, setProgressOpen] = useState(false);
 
   const handleClose = (reason) => {
     if (reason === "clickaway") {
@@ -99,13 +97,10 @@ const Dashboard = () => {
   };
 
   const handleDownloadButtonClick = () => {
-    const delay = 30000; // 30 seconds in milliseconds
-    const timer = setTimeout(() => {
-      setOpen(true);
-      setWarningMessage("30 seconds have passed!");
-    }, delay);
-    setProgress(0);
-    setProgressOpen(false);
+    const delay =
+      threadCount === 1
+        ? threadCount * 5 * 1000
+        : threadCount * 5 * 2 * (threadCount - 1) * 1000; // 30 seconds in milliseconds
     let feildNames = excelData[0];
     let cidIndex, idIndex, successCount, exceptionCount;
     if (excelData.length === 0) {
@@ -124,7 +119,6 @@ const Dashboard = () => {
       setOpen(true);
       setWarningMessage("Exception file path field is required");
     } else {
-      setProgressOpen(true);
       successCount = 0;
       exceptionCount = 0;
       feildNames.map((field, index) => {
@@ -136,103 +130,72 @@ const Dashboard = () => {
         }
       });
       excelData.map((data, index) => {
-        if (index !== 0) {
-          const fetchData = async () => {
-            try {
-              const response = await axios.get(GET_BY_CID_AND_ID_URL, {
-                params: {
-                  cid: data[cidIndex],
-                  key: apiKey
-                }
-              });
-              const responseData = response.data;
-              const successPath =
-                succesFilePath + "\\" + data[idIndex] + ".txt";
-              const exceptionPath =
-                exceptionFilePath + "\\" + data[idIndex] + ".txt";
-              const newData = {
-                filename: { id: data[idIndex] },
-                ...responseData
-              };
-              const mapData = JSON.stringify(newData, null, 2);
-              if (responseData.error_message) {
-                exceptionCount = exceptionCount + 1;
-                ipcRenderer.invoke("save-exception-file", {
-                  exceptionPath,
-                  mapData
+        const timer = setTimeout(() => {
+          if (index !== 0) {
+            const fetchData = async () => {
+              try {
+                const response = await axios.get(GET_BY_CID_AND_ID_URL, {
+                  params: {
+                    cid: data[cidIndex],
+                    key: apiKey
+                  }
                 });
-              } else {
-                successCount = successCount + 1;
+                const responseData = response.data;
+                const successPath =
+                  succesFilePath + "\\" + data[idIndex] + ".txt";
+                const exceptionPath =
+                  exceptionFilePath + "\\" + data[idIndex] + ".txt";
+                const newData = {
+                  filename: { id: data[idIndex] },
+                  ...responseData
+                };
+                const mapData = JSON.stringify(newData, null, 2);
+                if (responseData.status !== "OK") {
+                  exceptionCount = exceptionCount + 1;
+                  ipcRenderer.invoke("save-exception-file", {
+                    exceptionPath,
+                    mapData
+                  });
+                } else {
+                  successCount = successCount + 1;
 
-                ipcRenderer.invoke("save-success-file", {
-                  successPath,
-                  mapData
-                });
+                  ipcRenderer.invoke("save-success-file", {
+                    successPath,
+                    mapData
+                  });
+                }
+                const allCount = excelData.length - 1;
+                setOpen(true);
+                setWarningMessage(
+                  "Out of a total of " +
+                    allCount +
+                    " responses, " +
+                    successCount +
+                    " were successful and " +
+                    exceptionCount +
+                    " were exceptions."
+                );
+              } catch (error) {
+                console.error(error);
               }
-              const allCount = excelData.length - 1;
-              setOpen(true);
-              setWarningMessage(
-                "Out of a total of " +
-                  allCount +
-                  " responses, " +
-                  successCount +
-                  " were successful and " +
-                  exceptionCount +
-                  " were exceptions."
-              );
-            } catch (error) {
-              console.error(error);
-            }
-          };
-          fetchData();
-        }
-        let proData = 100 * ((index + 1) / excelData.length);
-        setProgress(proData);
+            };
+            fetchData();
+          }
+        }, delay);
+        // Clean up the timer if the component is unmounted or updated
+        return () => clearTimeout(timer);
       });
     }
-
-    setProgressOpen(false);
+    setOpen(true);
+    setWarningMessage(delay / 1000 + " seconds have passed!");
     setExcelData([]);
     setThreadCount("");
     setSuccessFilePath("");
     setExceptionFilePath("");
-
-    // Clean up the timer if the component is unmounted or updated
-    return () => clearTimeout(timer);
   };
 
   const isNonMediumScreens = useMediaQuery("(min-width: 1200px)");
   const theme = useTheme();
-
-  const [dynamicContent, setDynamicContent] = useState("");
-  useEffect(() => {
-    if (progressOpen) {
-      setDynamicContent(
-        <Box
-          mt="1rem"
-          sx={{ display: { xs: "none", md: "flex" } }}
-          alignItems="center"
-          justifyContent="center"
-        >
-          <LinearProgressWithLabel
-            sx={{
-              height: "2rem",
-              width: "35rem",
-              borderRadius: "1rem 1rem 1rem 1rem",
-              backgroundColor: "#fff",
-              color: "#222",
-              fontSize: "1.5rem",
-              textTransform: "none",
-              boxShadow: "#222 1px 0px 5px 0px"
-            }}
-            value={progress}
-          />
-        </Box>
-      );
-    } else {
-      setDynamicContent("");
-    }
-  }, [progressOpen]);
 
   return (
     <Box>
@@ -292,7 +255,7 @@ const Dashboard = () => {
             />
             <Button
               sx={{
-                height: "4.8rem",
+                height: "3.8rem",
                 width: "47rem",
                 borderRadius: "1rem 1rem 1rem 1rem",
                 backgroundColor: "#ef6c00",
@@ -314,7 +277,7 @@ const Dashboard = () => {
           >
             <FormLabel
               sx={{
-                height: "4.8rem",
+                height: "3.8rem",
                 width: "8rem",
                 color: "#000000",
                 fontSize: "1.5rem",
@@ -333,7 +296,7 @@ const Dashboard = () => {
                   display: "flex",
                   alignItems: "center",
                   width: 620,
-                  height: 75,
+                  height: 55,
                   color: "#222",
                   backgroundColor: "#fff",
                   borderRadius: "1rem 1rem 1rem 1rem",
@@ -347,7 +310,7 @@ const Dashboard = () => {
                 <MenuItem value={1}>1</MenuItem>
                 <MenuItem value={2}>2</MenuItem>
                 <MenuItem value={3}>3</MenuItem>
-                <MenuItem value={1}>4</MenuItem>
+                <MenuItem value={4}>4</MenuItem>
               </Select>
             </FormControl>
           </Box>
@@ -359,7 +322,7 @@ const Dashboard = () => {
           >
             <FormLabel
               sx={{
-                height: "4.8rem",
+                height: "3.8rem",
                 width: "8rem",
                 color: "#000000",
                 fontSize: "1.5rem",
@@ -378,7 +341,7 @@ const Dashboard = () => {
                 display: "flex",
                 alignItems: "center",
                 width: 620,
-                height: 75,
+                height: 55,
                 backgroundColor: "#fff",
                 color: "#222",
                 borderRadius: "1rem 1rem 1rem 1rem",
@@ -405,7 +368,7 @@ const Dashboard = () => {
                 display: "flex",
                 alignItems: "center",
                 width: 500,
-                height: 75,
+                height: 55,
                 backgroundColor: "#fff",
                 color: "#222",
                 borderRadius: "1rem 0 0 1rem",
@@ -420,7 +383,7 @@ const Dashboard = () => {
             </Paper>
             <Button
               sx={{
-                height: "4.8rem",
+                height: "3.8rem",
                 width: "16rem",
                 borderRadius: "0 1rem 1rem 0",
                 backgroundColor: "#126014",
@@ -447,7 +410,7 @@ const Dashboard = () => {
                 display: "flex",
                 alignItems: "center",
                 width: 500,
-                height: 75,
+                height: 55,
                 backgroundColor: "#fff",
                 color: "#222",
                 borderRadius: "1rem 0 0 1rem",
@@ -462,7 +425,7 @@ const Dashboard = () => {
             </Paper>
             <Button
               sx={{
-                height: "4.8rem",
+                height: "3.8rem",
                 width: "16rem",
                 borderRadius: "0 1rem 1rem 0",
                 backgroundColor: "#ed1c24",
@@ -476,7 +439,6 @@ const Dashboard = () => {
               Exception Location
             </Button>
           </Box>
-          {dynamicContent}
           <Box
             mt="1rem"
             sx={{ display: { xs: "none", md: "flex" } }}
@@ -485,7 +447,7 @@ const Dashboard = () => {
           >
             <Button
               sx={{
-                height: "4.8rem",
+                height: "3.8rem",
                 width: "47rem",
                 borderRadius: "1rem 1rem 1rem 1rem",
                 backgroundColor: "#431ced",

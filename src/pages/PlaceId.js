@@ -47,8 +47,7 @@ const PlaceId = () => {
   const [threadCount, setThreadCount] = useState("");
   const [warningMessage, setWarningMessage] = useState("");
   const [open, setOpen] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [progressOpen, setProgressOpen] = useState(false);
+  const [delayTime, setDelayTime] = useState("");
 
   const handleClose = (reason) => {
     if (reason === "clickaway") {
@@ -59,7 +58,10 @@ const PlaceId = () => {
 
   const handleSelectChange = (e) => {
     setThreadCount(e.target.value);
-    console.log(threadCount);
+  };
+
+  const handleDelayInputChange = (e) => {
+    setDelayTime(e.target.value);
   };
 
   const handleExceptionDownload = async () => {
@@ -100,13 +102,8 @@ const PlaceId = () => {
   };
 
   const handleDownloadButtonClick = () => {
-    const delay = 30000; // 30 seconds in milliseconds
-    const timer = setTimeout(() => {
-      setOpen(true);
-      setWarningMessage("30 seconds have passed!");
-    }, delay);
-    setProgress(0);
-    setProgressOpen(false);
+    const delay = delayTime * 1000; // 30 seconds in milliseconds
+
     let feildNames = excelData[0];
     let placeidIndex, idIndex, successCount, exceptionCount;
     if (excelData.length === 0) {
@@ -115,6 +112,14 @@ const PlaceId = () => {
     } else if (threadCount === "") {
       setOpen(true);
       setWarningMessage("Threads field is required");
+    } else if (delayTime === "") {
+      setOpen(true);
+      setWarningMessage("Delay time field is required");
+    } else if (typeof delayTime !== Number) {
+      setOpen(true);
+      setWarningMessage(
+        "Delay time field is invalid. Delay time must be Number"
+      );
     } else if (apiKey === "") {
       setOpen(true);
       setWarningMessage("API key field is required");
@@ -127,7 +132,6 @@ const PlaceId = () => {
     } else {
       successCount = 0;
       exceptionCount = 0;
-      setProgressOpen(true);
       feildNames.map((field, index) => {
         if (field === "PLACEID") {
           placeidIndex = index;
@@ -137,101 +141,72 @@ const PlaceId = () => {
         }
       });
       excelData.map((data, index) => {
-        if (index !== 0) {
-          const fetchData = async () => {
-            try {
-              const response = await axios.get(GET_BY_CID_AND_ID_URL, {
-                params: {
-                  placeid: data[placeidIndex],
-                  key: apiKey
+        const timer = setTimeout(() => {
+          if (index !== 0) {
+            const fetchData = async () => {
+              try {
+                const response = await axios.get(GET_BY_CID_AND_ID_URL, {
+                  params: {
+                    placeid: data[placeidIndex],
+                    key: apiKey
+                  }
+                });
+                const responseData = response.data;
+                const successPath =
+                  succesFilePath + "\\" + data[idIndex] + ".txt";
+                const exceptionPath =
+                  exceptionFilePath + "\\" + data[idIndex] + ".txt";
+                const newData = {
+                  filename: { id: data[idIndex] },
+                  ...responseData
+                };
+                const mapData = JSON.stringify(newData, null, 2);
+                if (responseData.status !== "OK") {
+                  exceptionCount++;
+                  ipcRenderer.invoke("save-exception-file", {
+                    exceptionPath,
+                    mapData
+                  });
+                } else {
+                  successCount++;
+                  ipcRenderer.invoke("save-success-file", {
+                    successPath,
+                    mapData
+                  });
                 }
-              });
-              const responseData = response.data;
-              const successPath =
-                succesFilePath + "\\" + data[idIndex] + ".txt";
-              const exceptionPath =
-                exceptionFilePath + "\\" + data[idIndex] + ".txt";
-              const newData = {
-                filename: { id: data[idIndex] },
-                ...responseData
-              };
-              const mapData = JSON.stringify(newData, null, 2);
-              if (responseData.error_message) {
-                exceptionCount++;
-                ipcRenderer.invoke("save-exception-file", {
-                  exceptionPath,
-                  mapData
-                });
-              } else {
-                successCount++;
-                ipcRenderer.invoke("save-success-file", {
-                  successPath,
-                  mapData
-                });
+                const allCount = excelData.length - 1;
+                setOpen(true);
+                setWarningMessage(
+                  "Out of a total of " +
+                    allCount +
+                    " responses, " +
+                    successCount +
+                    " were successful and " +
+                    exceptionCount +
+                    " were exceptions."
+                );
+              } catch (error) {
+                console.error(error);
               }
-              const allCount = excelData.length - 1;
-              setOpen(true);
-              setWarningMessage(
-                "Out of a total of " +
-                  allCount +
-                  " responses, " +
-                  successCount +
-                  " were successful and " +
-                  exceptionCount +
-                  " were exceptions."
-              );
-            } catch (error) {
-              console.error(error);
-            }
-          };
-          fetchData();
-        }
-        let proData = 100 * ((index + 1) / excelData.length);
-        setProgress(proData);
+            };
+            fetchData();
+          }
+        }, delay);
+        // Clean up the timer if the component is unmounted or updated
+        return () => clearTimeout(timer);
       });
+      setOpen(true);
+      setWarningMessage(delay / 1000 + " seconds have passed!");
     }
-    setProgressOpen(false);
+
     setExcelData([]);
     setThreadCount("");
     setSuccessFilePath("");
     setExceptionFilePath("");
-
-    // Clean up the timer if the component is unmounted or updated
-    return () => clearTimeout(timer);
   };
 
   const isNonMediumScreens = useMediaQuery("(min-width: 1200px)");
   const theme = useTheme();
-
-  const [dynamicContent, setDynamicContent] = useState("");
-  useEffect(() => {
-    if (progressOpen) {
-      setDynamicContent(
-        <Box
-          mt="1rem"
-          sx={{ display: { xs: "none", md: "flex" } }}
-          alignItems="center"
-          justifyContent="center"
-        >
-          <LinearProgressWithLabel
-            sx={{
-              height: "2rem",
-              width: "35rem",
-              borderRadius: "1rem 1rem 1rem 1rem",
-              backgroundColor: "#fff",
-              color: "#222",
-              fontSize: "1.5rem",
-              textTransform: "none",
-              boxShadow: "#222 1px 0px 5px 0px"
-            }}
-            value={progress}
-          />
-        </Box>
-      );
-    } else {
-      setDynamicContent("");
-    }
-  }, [progressOpen]);
 
   return (
     <Box>
@@ -291,7 +266,7 @@ const PlaceId = () => {
             />
             <Button
               sx={{
-                height: "4.8rem",
+                height: "3.8rem",
                 width: "47rem",
                 borderRadius: "1rem 1rem 1rem 1rem",
                 backgroundColor: "#ef6c00",
@@ -313,7 +288,48 @@ const PlaceId = () => {
           >
             <FormLabel
               sx={{
-                height: "4.8rem",
+                height: "3.8rem",
+                width: "8rem",
+                color: "#000000",
+                fontSize: "1.5rem",
+                textAlign: "center",
+                alignItems: "center",
+                justifyContent: "center",
+                textTransform: "none"
+              }}
+            >
+              Delay Time:
+            </FormLabel>
+            <Paper
+              component="form"
+              sx={{
+                p: "2px 4px",
+                display: "flex",
+                alignItems: "center",
+                width: 620,
+                height: 55,
+                backgroundColor: "#fff",
+                color: "#222",
+                borderRadius: "1rem 1rem 1rem 1rem",
+                boxShadow: "#222 0px 0px 5px 0px"
+              }}
+            >
+              <InputBase
+                onChange={handleDelayInputChange}
+                sx={{ ml: 1, flex: 1, color: "#222", fontSize: "1.5rem" }}
+                placeholder="Please enter Delay Time"
+              />
+            </Paper>
+          </Box>
+          <Box
+            mt="1rem"
+            sx={{ display: { xs: "none", md: "flex" } }}
+            alignItems="center"
+            justifyContent="center"
+          >
+            <FormLabel
+              sx={{
+                height: "3.8rem",
                 width: "8rem",
                 color: "#000000",
                 fontSize: "1.5rem",
@@ -332,7 +348,7 @@ const PlaceId = () => {
                   display: "flex",
                   alignItems: "center",
                   width: 620,
-                  height: 75,
+                  height: 55,
                   color: "#222",
                   backgroundColor: "#fff",
                   borderRadius: "1rem 1rem 1rem 1rem",
@@ -346,7 +362,7 @@ const PlaceId = () => {
                 <MenuItem value={1}>1</MenuItem>
                 <MenuItem value={2}>2</MenuItem>
                 <MenuItem value={3}>3</MenuItem>
-                <MenuItem value={1}>4</MenuItem>
+                <MenuItem value={4}>4</MenuItem>
               </Select>
             </FormControl>
           </Box>
@@ -358,7 +374,7 @@ const PlaceId = () => {
           >
             <FormLabel
               sx={{
-                height: "4.8rem",
+                height: "3.8rem",
                 width: "8rem",
                 color: "#000000",
                 fontSize: "1.5rem",
@@ -377,7 +393,7 @@ const PlaceId = () => {
                 display: "flex",
                 alignItems: "center",
                 width: 620,
-                height: 75,
+                height: 55,
                 backgroundColor: "#fff",
                 color: "#222",
                 borderRadius: "1rem 1rem 1rem 1rem",
@@ -404,7 +420,7 @@ const PlaceId = () => {
                 display: "flex",
                 alignItems: "center",
                 width: 500,
-                height: 75,
+                height: 55,
                 backgroundColor: "#fff",
                 color: "#222",
                 borderRadius: "1rem 0 0 1rem",
@@ -419,7 +435,7 @@ const PlaceId = () => {
             </Paper>
             <Button
               sx={{
-                height: "4.8rem",
+                height: "3.8rem",
                 width: "16rem",
                 borderRadius: "0 1rem 1rem 0",
                 backgroundColor: "#126014",
@@ -446,7 +462,7 @@ const PlaceId = () => {
                 display: "flex",
                 alignItems: "center",
                 width: 500,
-                height: 75,
+                height: 55,
                 backgroundColor: "#fff",
                 color: "#222",
                 borderRadius: "1rem 0 0 1rem",
@@ -461,7 +477,7 @@ const PlaceId = () => {
             </Paper>
             <Button
               sx={{
-                height: "4.8rem",
+                height: "3.8rem",
                 width: "16rem",
                 borderRadius: "0 1rem 1rem 0",
                 backgroundColor: "#ed1c24",
@@ -475,7 +491,6 @@ const PlaceId = () => {
               Exception Location
             </Button>
           </Box>
-          {dynamicContent}
           <Box
             mt="1rem"
             sx={{ display: { xs: "none", md: "flex" } }}
@@ -484,7 +499,7 @@ const PlaceId = () => {
           >
             <Button
               sx={{
-                height: "4.8rem",
+                height: "3.8rem",
                 width: "47rem",
                 borderRadius: "1rem 1rem 1rem 1rem",
                 backgroundColor: "#431ced",
