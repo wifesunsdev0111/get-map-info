@@ -5,8 +5,9 @@ const path = require("path");
 let mainWindow;
 app.on("ready", () => {
   mainWindow = new BrowserWindow({
+    icon: path.join(__dirname, "app-icon.ico"), // Set the path to your icon file
     width: 1600,
-    height: 1035,
+    height: 1100,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false
@@ -40,20 +41,8 @@ ipcMain.handle("open-success-dialog", async (event, args) => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ["openDirectory"]
   });
-
   const baseFolderPath = result.filePaths[0];
-  const registryFolderName = "successful";
-  const registryPath = path.join(baseFolderPath, registryFolderName);
-
-  if (!fs.existsSync(registryPath)) {
-    // Create the registry directory
-    fs.mkdirSync(registryPath);
-
-    // Perform any additional initialization steps here
-    return registryPath;
-  } else {
-    return baseFolderPath;
-  }
+  return baseFolderPath;
 });
 
 ipcMain.handle("open-exception-dialog", async (event, args) => {
@@ -62,16 +51,7 @@ ipcMain.handle("open-exception-dialog", async (event, args) => {
   });
 
   const baseFolderPath = result.filePaths[0];
-  const registryFolderName = "exception";
-  const registryPath = path.join(baseFolderPath, registryFolderName);
-
-  if (!fs.existsSync(registryPath)) {
-    // Create the registry directory
-    fs.mkdirSync(registryPath);
-    return registryPath;
-  } else {
-    return baseFolderPath;
-  }
+  return baseFolderPath;
 });
 
 ipcMain.handle("save-success-file", async (event, args) => {
@@ -93,5 +73,25 @@ ipcMain.handle("save-exception-file", async (event, args) => {
   } catch (error) {
     console.error(error);
     return false;
+  }
+});
+
+// Check if the path exists
+ipcMain.handle("checkPathExists", async (event, filePath) => {
+  try {
+    const exists = await fs.promises.access(filePath, fs.constants.F_OK);
+    return true;
+  } catch (error) {
+    return false;
+  }
+});
+
+// Create a new directory based on the path
+ipcMain.handle("createDirectory", async (event, filePath) => {
+  try {
+    await fs.promises.mkdir(filePath, { recursive: true });
+  } catch (error) {
+    console.error("Error creating directory:", error);
+    throw error;
   }
 });

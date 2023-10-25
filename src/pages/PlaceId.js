@@ -24,20 +24,6 @@ import axios from "axios";
 
 const ipcRenderer = window.require("electron").ipcRenderer;
 
-function LinearProgressWithLabel(props) {
-  return (
-    <Box sx={{ display: "flex", alignItems: "center" }}>
-      <Box sx={{ width: "100%", mr: 1 }}>
-        <LinearProgress variant="determinate" {...props} />
-      </Box>
-      <Box sx={{ minWidth: 35 }}>
-        <Typography variant="body2" color="#222">{`${Math.round(
-          props.value
-        )}%`}</Typography>
-      </Box>
-    </Box>
-  );
-}
 const PlaceId = () => {
   const [excelData, setExcelData] = useState([]);
   const [uploadClick, setUploadClick] = useState(false);
@@ -61,7 +47,24 @@ const PlaceId = () => {
   };
 
   const handleDelayInputChange = (e) => {
-    setDelayTime(e.target.value);
+    const numericValue = e.target.value.replace(/[^0-9]/g, "");
+    setDelayTime(numericValue);
+  };
+
+  const handleSuccessPathChange = (event) => {
+    setSuccessFilePath(event.target.value);
+  };
+
+  const handleExceptionPathChange = (event) => {
+    setExceptionFilePath(event.target.value);
+  };
+
+  const clearData = () => {
+    setExcelData([]);
+    setDelayTime("");
+    setSuccessFilePath("");
+    setExceptionFilePath("");
+    setThreadCount("");
   };
 
   const handleExceptionDownload = async () => {
@@ -79,10 +82,10 @@ const PlaceId = () => {
   };
 
   const handleImport = (event) => {
+    setExcelData([]);
     const file = event.target.files[0];
     const reader = new FileReader();
     setUploadClick(true);
-    setExcelData([]);
     reader.onload = (e) => {
       const workbook = XLSX.read(e.target.result, { type: "binary" });
       const sheetName = workbook.SheetNames[0];
@@ -90,7 +93,7 @@ const PlaceId = () => {
       const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
       setExcelData(data);
       setOpen(true);
-      setWarningMessage("File " + file.name + " has been uploaded.");
+      setWarningMessage("File " + file.path + " has been uploaded.");
       setUploadClick(false);
     };
 
@@ -103,23 +106,17 @@ const PlaceId = () => {
 
   const handleDownloadButtonClick = () => {
     const delay = delayTime * 1000; // 30 seconds in milliseconds
-
     let feildNames = excelData[0];
     let placeidIndex, idIndex, successCount, exceptionCount;
     if (excelData.length === 0) {
       setOpen(true);
       setWarningMessage("Please upload Excel sheet");
-    } else if (threadCount === "") {
-      setOpen(true);
-      setWarningMessage("Threads field is required");
     } else if (delayTime === "") {
       setOpen(true);
       setWarningMessage("Delay time field is required");
-    } else if (typeof delayTime !== Number) {
+    } else if (threadCount === "") {
       setOpen(true);
-      setWarningMessage(
-        "Delay time field is invalid. Delay time must be Number"
-      );
+      setWarningMessage("Threads field is required");
     } else if (apiKey === "") {
       setOpen(true);
       setWarningMessage("API key field is required");
@@ -140,69 +137,98 @@ const PlaceId = () => {
           idIndex = index;
         }
       });
-      excelData.map((data, index) => {
-        const timer = setTimeout(() => {
-          if (index !== 0) {
-            const fetchData = async () => {
-              try {
-                const response = await axios.get(GET_BY_CID_AND_ID_URL, {
-                  params: {
-                    placeid: data[placeidIndex],
-                    key: apiKey
-                  }
-                });
-                const responseData = response.data;
-                const successPath =
-                  succesFilePath + "\\" + data[idIndex] + ".txt";
-                const exceptionPath =
-                  exceptionFilePath + "\\" + data[idIndex] + ".txt";
-                const newData = {
-                  filename: { id: data[idIndex] },
-                  ...responseData
-                };
-                const mapData = JSON.stringify(newData, null, 2);
-                if (responseData.status !== "OK") {
-                  exceptionCount++;
+      excelData.map(async (data, index) => {
+        if (index !== 0) {
+          const timer = setTimeout(async () => {
+            try {
+              const response = await axios.get(GET_BY_CID_AND_ID_URL, {
+                params: {
+                  placeid: data[placeidIndex],
+                  key: apiKey
+                }
+              });
+              const responseData = response.data;
+
+              const successPath =
+                succesFilePath + "\\" + data[idIndex] + ".txt";
+              const exceptionPath =
+                exceptionFilePath + "\\" + data[idIndex] + ".txt";
+              const newData = {
+                filename: { id: data[idIndex] },
+                ...responseData
+              };
+              const mapData = JSON.stringify(newData, null, 2);
+              if (responseData.status !== "OK") {
+                exceptionCount++;
+                const pathExists = await ipcRenderer.invoke(
+                  "checkPathExists",
+                  exceptionFilePath
+                );
+                if (pathExists) {
+                  // Path exists, store the file
                   ipcRenderer.invoke("save-exception-file", {
                     exceptionPath,
                     mapData
                   });
                 } else {
-                  successCount++;
+                  // Path doesn't exist, create a new directory based on the path and store the file
+                  await ipcRenderer.invoke(
+                    "createDirectory",
+                    exceptionFilePath
+                  );
+                  ipcRenderer.invoke("save-exception-file", {
+                    exceptionPath,
+                    mapData
+                  });
+                }
+              } else {
+                successCount++;
+                const pathExists = await ipcRenderer.invoke(
+                  "checkPathExists",
+                  succesFilePath
+                );
+                if (pathExists) {
+                  // Path exists, store the file
                   ipcRenderer.invoke("save-success-file", {
                     successPath,
                     mapData
                   });
+                } else {
+                  // Path doesn't exist, create a new directory based on the path and store the file
+                  await ipcRenderer.invoke("createDirectory", succesFilePath);
+                  ipcRenderer.invoke("save-success-file", {
+                    successPath,
+                    mapData
+                  });
+                  console.log(
+                    "Directory created and file stored successfully."
+                  );
                 }
-                const allCount = excelData.length - 1;
-                setOpen(true);
-                setWarningMessage(
-                  "Out of a total of " +
-                    allCount +
-                    " responses, " +
-                    successCount +
-                    " were successful and " +
-                    exceptionCount +
-                    " were exceptions."
-                );
-              } catch (error) {
-                console.error(error);
               }
-            };
-            fetchData();
-          }
-        }, delay);
-        // Clean up the timer if the component is unmounted or updated
-        return () => clearTimeout(timer);
+              const allCount = excelData.length - 1;
+              setOpen(true);
+              setWarningMessage(
+                "Out of a total of " +
+                  allCount +
+                  " responses, " +
+                  successCount +
+                  " were successful and " +
+                  exceptionCount +
+                  " were exceptions."
+              );
+            } catch (error) {
+              console.error(error);
+            }
+            clearData();
+          }, index * delay);
+
+          // Clean up the timer if the component is unmounted or updated
+          return () => clearTimeout(timer);
+        }
       });
       setOpen(true);
-      setWarningMessage(delay / 1000 + " seconds have passed!");
+      setWarningMessage("There was a " + delay / 1000 + " second delay");
     }
-
-    setExcelData([]);
-    setThreadCount("");
-    setSuccessFilePath("");
-    setExceptionFilePath("");
   };
 
   const isNonMediumScreens = useMediaQuery("(min-width: 1200px)");
@@ -315,6 +341,7 @@ const PlaceId = () => {
               }}
             >
               <InputBase
+                value={delayTime}
                 onChange={handleDelayInputChange}
                 sx={{ ml: 1, flex: 1, color: "#222", fontSize: "1.5rem" }}
                 placeholder="Please enter Delay Time"
@@ -429,6 +456,7 @@ const PlaceId = () => {
             >
               <InputBase
                 value={succesFilePath}
+                onChange={handleSuccessPathChange}
                 sx={{ ml: 1, flex: 1, color: "#222", fontSize: "1.5rem" }}
                 placeholder="Download Successful Response Location"
               />
@@ -471,6 +499,7 @@ const PlaceId = () => {
             >
               <InputBase
                 value={exceptionFilePath}
+                onChange={handleExceptionPathChange}
                 sx={{ ml: 1, flex: 1, color: "#222", fontSize: "1.5rem" }}
                 placeholder="Download Exception Location"
               />
